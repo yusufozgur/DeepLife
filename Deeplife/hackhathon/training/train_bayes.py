@@ -15,13 +15,13 @@ def trainVEGA_bayes(vae, data, val_data, epochs=100, beta_en = 0.0001, beta_de =
             opt.zero_grad()
             x_hat = vae(x)
             kl_encoder = vae.encoder.kl
-            kl_decoder = vae.decoder.kl_divergence()
+            kl_decoder = vae.decoder.sparse_layer.kl_divergence()
 
             loss = ((x - x_hat)**2).sum() + beta_en* kl_encoder + beta_de*kl_decoder
             loss.backward()
             opt.step()
             train_loss_e += loss.to('cpu').detach().numpy()
-            vae.decoder.weights()
+            #vae.decoder.weights()
             vae.encoder.clamp_mu()
         train_losses.append(train_loss_e/(len(data)*128))
 
@@ -33,7 +33,7 @@ def trainVEGA_bayes(vae, data, val_data, epochs=100, beta_en = 0.0001, beta_de =
                 x = x.to(device)
                 x_hat = vae(x)
                 kl_encoder = vae.encoder.kl
-                kl_decoder = vae.decoder.kl_divergence()
+                kl_decoder = vae.decoder.sparse_layer.kl_divergence()
                 loss = ((x - x_hat)**2).sum() + beta_en* kl_encoder + beta_de*kl_decoder
                 valid_loss_e += loss.to('cpu').detach().numpy()
             valid_losses.append(valid_loss_e/(len(val_data)*128))

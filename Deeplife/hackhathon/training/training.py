@@ -55,10 +55,9 @@ def run_vega_model(vega, model_type, train_data, valid_data, mask_df, path_to_sa
         case "bayes":
             weight_uncertainties = []
             for _ in range(N):
-                os.makedirs(path_to_save, exist_ok=True)  
                 vega, train_losses, valid_losses = trainVEGA_bayes(vega, trainX, validX, epochs = epochs, beta_en = 0.0001, beta_de=0.0001)
-                weight = get_weight_bayes(vega)
-                uncertainty = get_weight_uncertainties_bayes(vega)
+                weight,uncertainty  = get_weight_bayes(vega)
+               
                 all_weights.append(weight)
                 weight_uncertainties.append(uncertainty)
                 save_losses(train_losses, valid_losses, path_to_save)
@@ -113,12 +112,23 @@ def get_weight_swa(swa_model):
     W = model.decoder.sparse_layer[0].weight.data.cpu().numpy()
     return W
 
-
-
 def get_weight_bayes(model):
     # pull out the sparse‐layer weight matrix
-    W = model.decoder.sparse_layer[0].weight_mu.data.cpu().numpy()
-    return W
+    weight_mu= model.decoder.sparse_layer.weight_mu.data.clone()
+    mask = weight_mu.abs() < 1e-7
+
+    # Apply mask: zero out corresponding mus and logvars
+    weight_mu[mask] = 0.0
+    # pull out the sparse‐layer weight matrix
+    weight_logvar= model.decoder.sparse_layer.weight_logvar.data.clone()
+    weight_logvar[mask] = -float('inf')  
+    weight_std = torch.exp(0.5 * weight_logvar)
+    return weight_mu.data.cpu().numpy(), weight_std.data.cpu().numpy()
+
+#def get_weight_bayes(model):
+#    # pull out the sparse‐layer weight matrix
+#    W = model.decoder.sparse_layer[0].weight_mu.data.cpu().numpy()
+#    return W
 
 def get_weight_uncertainties_bayes(model):
     # pull out the sparse‐layer weight matrix
