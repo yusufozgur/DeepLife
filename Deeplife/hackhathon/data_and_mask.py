@@ -10,7 +10,7 @@ pbmc_train = sc.read_h5ad("PBMC_train.h5ad")
 pbmc_val = sc.read_h5ad("PBMC_valid.h5ad") 
 
 # dc.op does not work for me
-regulons = dc.get_collectri(organism='human', split_complexes=False)
+regulons = dc.op.collectri(organism='human')
 
 filtered_regulons = regulons[regulons['source'].isin(
     [
