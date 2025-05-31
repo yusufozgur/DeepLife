@@ -1,0 +1,15 @@
+[project]
+name = "pytorch"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "decoupler>=2.0.2",
+    "ipykernel>=6.29.5",
+    "matplotlib>=3.10.3",
+    "pandas>=2.2.3",
+    "polars>=1.29.0",
+    "pyarrow>=20.0.0",
+    "scanpy>=1.11.2",
+]
