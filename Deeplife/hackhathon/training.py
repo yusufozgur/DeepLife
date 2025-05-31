@@ -12,7 +12,7 @@ def save_losses(train_losses, valid_losses, path):
         for epoch, (train_loss, valid_loss) in enumerate(zip(train_losses, valid_losses)):
             f.write(f"{epoch},{train_loss},{valid_loss}\n")
 
-def run_vega_model(model_type, train_data, valid_data, mask_df, path_to_save, cond = 'all', N=10, epochs = 60, encoder = None): # I need this encoder argument 
+def run_vega_model(VEGA, model_type, train_data, valid_data, mask_df, path_to_save, cond = 'all', N=10, epochs = 60, encoder = None): # I need this encoder argument 
     """
     cond is "stimulated" or "control" or 'all' (I need 'all' to train the encoder before frezeing it)
     model type is 'bayes', 'vega' or 'swa'
