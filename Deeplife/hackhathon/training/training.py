@@ -7,6 +7,9 @@ from training.train_swa import trainVEGA_swa
 from training.train_bayes import trainVEGA_bayes
 import os
 from device import device
+from model.vega import VEGA
+from model.decoder_default import DecoderVEGA
+from model.encoder_with_mu_clamp import Encoder
 
 def save_losses(train_losses, valid_losses, path):
     with open(os.path.join(path, "losses.csv"),"w") as f:
@@ -14,7 +17,7 @@ def save_losses(train_losses, valid_losses, path):
         for epoch, (train_loss, valid_loss) in enumerate(zip(train_losses, valid_losses)):
             f.write(f"{epoch},{train_loss},{valid_loss}\n")
 
-def run_vega_model(vega, model_type, train_data, valid_data, mask_df, path_to_save = "save_model/vega", cond = 'all', cell_type = 'all', N=10, epochs = 60):
+def run_vega_model(model_type, train_data, valid_data, mask_df, path_to_save = "save_model/vega", cond = 'all', cell_type = 'all', N=10, epochs = 60):
     """
     cond is "stimulated" or "control" or 'all' (I need 'all' to train the encoder before frezeing it)
     model type is 'bayes', 'vega' or 'swa'
@@ -47,15 +50,42 @@ def run_vega_model(vega, model_type, train_data, valid_data, mask_df, path_to_sa
         case "vega":
             for _ in range(N):
                 os.makedirs(path_to_save, exist_ok=True)  
+
+                mask_np = mask_df.drop("target").to_numpy()
+
+                latent_dims= mask_np.shape[1]
+                input_dims = mask_np.shape[0]
+                dropout = 0.3
+                z_dropout = 0.5
+
+                vega = VEGA(
+                    encoder=Encoder(latent_dims, input_dims, dropout, z_dropout),
+                    decoder=DecoderVEGA(mask_np.T)
+                ).to(device)
+
                 vega, train_losses, valid_losses = trainVEGA_default(vega, trainX, validX, epochs=epochs, beta=0.0001)
                 weight = get_weight(vega)
                 all_weights.append(weight)
                 save_losses(train_losses, valid_losses, path_to_save) # there is no need to plot it, let's save a loss function to plot it later
 
+
         case "bayes":
             weight_uncertainties = []
             for _ in range(N):
-                vega, train_losses, valid_losses = trainVEGA_bayes(vega, trainX, validX, epochs = epochs, beta_en = 0.0001, beta_de=0.0001)
+                from model.decoder_bayes import DecoderBayes
+
+                mask_np = mask.drop("target").to_numpy()
+
+                latent_dims= mask_np.shape[1]
+                input_dims = mask_np.shape[0]
+                dropout = 0.3
+                z_dropout = 0.5
+
+                vega_bayes = VEGA(
+                    encoder=Encoder(latent_dims, input_dims, dropout, z_dropout),
+                    decoder=DecoderBayes(mask_np.T)
+                ).to(device)
+                vega, train_losses, valid_losses = trainVEGA_bayes(vega_bayes, trainX, validX, epochs = epochs, beta_en = 0.0001, beta_de=0.0001)
                 weight,uncertainty  = get_weight_bayes(vega)
                
                 all_weights.append(weight)
