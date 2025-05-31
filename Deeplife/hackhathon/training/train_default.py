@@ -3,8 +3,10 @@ from device import device
 
 def trainVEGA_default(vae, data, val_data, epochs=100, beta = 0.0001, learning_rate = 0.001):
     opt = torch.optim.Adam(vae.parameters(), lr = learning_rate, weight_decay = 5e-4)
+
     train_losses = []
     valid_losses = []
+    
     for epoch in range(epochs):
         train_loss_e = 0
         valid_loss_e = 0
@@ -14,11 +16,12 @@ def trainVEGA_default(vae, data, val_data, epochs=100, beta = 0.0001, learning_r
             x = x.to(device) # GPU
             opt.zero_grad()
             x_hat = vae(x)
-            loss = ((x - x_hat)**2).sum() + beta* vae.encoder.kl
+            loss = ((x - x_hat)**2).sum() + beta*vae.encoder.kl
             loss.backward()
             opt.step()
             train_loss_e += loss.to('cpu').detach().numpy()
-            vae.decoder.positive_weights() # we restrict the decoder to positive weights
+            vae.decoder.weights()
+            vae.encoder.clamp_mu()
         train_losses.append(train_loss_e/(len(data)*128))
 
         #### Here you should add the validation loop
@@ -36,15 +39,3 @@ def trainVEGA_default(vae, data, val_data, epochs=100, beta = 0.0001, learning_r
                 print("epoch: ", epoch, " train_loss: ", train_loss_e/(len(data)*128), "  valid_loss: ", valid_loss_e/(len(val_data)*128))
 
     return vae, train_losses, valid_losses
-
-def get_weight_bayes(model):
-    # pull out the sparse‐layer weight matrix
-    W = model.decoder.sparse_layer[0].weight_mu.data.cpu().numpy()
-    return W
-
-def get_weight_uncertainties_bayes(model):
-    # pull out the sparse‐layer weight matrix
-    W = model.decoder.sparse_layer[0].weight_log_sigma.data.cpu().numpy()
-    return W
-
-

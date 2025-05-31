@@ -6,8 +6,7 @@ from training.train_default import trainVEGA_default
 from training.train_swa import trainVEGA_swa
 from training.train_bayes import trainVEGA_bayes
 import os
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+from device import device
 
 def save_losses(train_losses, valid_losses, path):
     with open(os.path.join(path, "losses.csv"),"w") as f:
@@ -15,7 +14,7 @@ def save_losses(train_losses, valid_losses, path):
         for epoch, (train_loss, valid_loss) in enumerate(zip(train_losses, valid_losses)):
             f.write(f"{epoch},{train_loss},{valid_loss}\n")
 
-def run_vega_model(vega, model_type, train_data, valid_data, mask_df, path_to_save = "save_model/vega", cond = 'all', cell_type = 'all', N=10, epochs = 60, encoder = None): # I need this encoder argument 
+def run_vega_model(vega, model_type, train_data, valid_data, mask_df, path_to_save = "save_model/vega", cond = 'all', cell_type = 'all', N=10, epochs = 60):
     """
     cond is "stimulated" or "control" or 'all' (I need 'all' to train the encoder before frezeing it)
     model type is 'bayes', 'vega' or 'swa'
@@ -112,6 +111,18 @@ def get_weight_swa(swa_model):
     model = swa_model.module if hasattr(swa_model, "module") else swa_model
     # pull out the sparse‐layer weight matrix
     W = model.decoder.sparse_layer[0].weight.data.cpu().numpy()
+    return W
+
+
+
+def get_weight_bayes(model):
+    # pull out the sparse‐layer weight matrix
+    W = model.decoder.sparse_layer[0].weight_mu.data.cpu().numpy()
+    return W
+
+def get_weight_uncertainties_bayes(model):
+    # pull out the sparse‐layer weight matrix
+    W = model.decoder.sparse_layer[0].weight_log_sigma.data.cpu().numpy()
     return W
 
 

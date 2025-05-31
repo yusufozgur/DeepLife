@@ -19,7 +19,8 @@ def trainVEGA_swa(vae, data, val_data, epochs=100, beta=0.0001,
             loss = ((x - x_hat)**2).sum() + beta * vae.encoder.kl
             loss.backward()
             opt.step()
-            vae.decoder.positive_weights()
+            vae.decoder.weights()
+            vae.encoder.clamp_mu()
             train_loss_e += loss.detach().cpu().item()
 
         # start updating our SWA weights
