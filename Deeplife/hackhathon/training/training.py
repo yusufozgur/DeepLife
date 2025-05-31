@@ -125,10 +125,10 @@ def get_weight_bayes(model):
     weight_std = torch.exp(0.5 * weight_logvar)
     return weight_mu.data.cpu().numpy(), weight_std.data.cpu().numpy()
 
-#def get_weight_bayes(model):
-#    # pull out the sparse‐layer weight matrix
-#    W = model.decoder.sparse_layer[0].weight_mu.data.cpu().numpy()
-#    return W
+#   def get_weight_bayes(model):
+#       # pull out the sparse‐layer weight matrix
+#       W = model.decoder.sparse_layer[0].weight_mu.data.cpu().numpy()
+#       return W
 
 def get_weight_uncertainties_bayes(model):
     # pull out the sparse‐layer weight matrix
