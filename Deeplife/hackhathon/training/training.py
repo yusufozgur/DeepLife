@@ -17,6 +17,26 @@ def save_losses(train_losses, valid_losses, path):
         for epoch, (train_loss, valid_loss) in enumerate(zip(train_losses, valid_losses)):
             f.write(f"{epoch},{train_loss},{valid_loss}\n")
 
+def one_iter_weights_or_uncertainty_to_df(mask_df, weight_or_uncertainty, iter_count):
+    tfs = mask_df.drop("target").columns
+    weights_per_iteration = pl.from_numpy(weight_or_uncertainty)
+    weights_per_iteration.columns = tfs
+    weights_per_iteration = weights_per_iteration.with_columns(
+        mask_df["target"]
+    )
+
+    weights_per_iteration = weights_per_iteration.unpivot(
+        index = "target", # stays in rows
+        variable_name="tf",
+        value_name="weight"
+    )
+
+    weights_per_iteration = weights_per_iteration.with_columns(
+        pl.lit(iter_count).alias("iteration")
+        )
+    
+    return weights_per_iteration
+
 def run_vega_model(model_type, train_data, valid_data, mask_df, path_to_save = "save_model/vega", cond = 'all', cell_type = 'all', N=10, epochs = 60):
     """
     cond is "stimulated" or "control" or 'all' (I need 'all' to train the encoder before frezeing it)
@@ -48,7 +68,8 @@ def run_vega_model(model_type, train_data, valid_data, mask_df, path_to_save = "
 
     match model_type:
         case "vega":
-            for _ in range(N):
+            weights_per_iteration_set = []
+            for iter_count in range(N):
                 os.makedirs(path_to_save, exist_ok=True)  
 
                 mask_np = mask_df.drop("target").to_numpy()
@@ -65,13 +86,28 @@ def run_vega_model(model_type, train_data, valid_data, mask_df, path_to_save = "
 
                 vega, train_losses, valid_losses = trainVEGA_default(vega, trainX, validX, epochs=epochs, beta=0.0001)
                 weight = get_weight(vega)
+                
+                #save for kerem, so they can do stat tests
+                
+                weights_per_iteration_set.append(
+                    one_iter_weights_or_uncertainty_to_df(
+                        mask_df,
+                        weight,
+                        iter_count
+                    )
+                )
+
+                #
                 all_weights.append(weight)
                 save_losses(train_losses, valid_losses, path_to_save) # there is no need to plot it, let's save a loss function to plot it later
 
 
         case "bayes":
+            weights_per_iteration_set = []
+            weight_uncertainties_per_iteration_set = []
+
             weight_uncertainties = []
-            for _ in range(N):
+            for iter_count in range(N):
                 from model.decoder_bayes import DecoderBayes
 
                 mask_np = mask_df.drop("target").to_numpy()
@@ -88,6 +124,26 @@ def run_vega_model(model_type, train_data, valid_data, mask_df, path_to_save = "
                 vega, train_losses, valid_losses = trainVEGA_bayes(vega_bayes, trainX, validX, epochs = epochs, beta_en = 0.0001, beta_de=0.0001)
                 weight,uncertainty  = get_weight_bayes(vega)
                
+                # save for kerem, so they can do stat tests
+
+                weights_per_iteration_set.append(
+                    one_iter_weights_or_uncertainty_to_df(
+                        mask_df,
+                        weight,
+                        iter_count
+                    )
+                )
+                
+                weight_uncertainties_per_iteration_set.append(
+                    one_iter_weights_or_uncertainty_to_df(
+                        mask_df,
+                        uncertainty,
+                        iter_count
+                    )
+                )
+                #
+
+
                 all_weights.append(weight)
                 weight_uncertainties.append(uncertainty)
                 save_losses(train_losses, valid_losses, path_to_save)
@@ -113,6 +169,19 @@ def run_vega_model(model_type, train_data, valid_data, mask_df, path_to_save = "
                 save_losses(train_losses, valid_losses, path_to_save)
 
 
+    #save the iteration weights
+    weights_per_iteration_single_df = pl.concat(weights_per_iteration_set)
+    weights_per_iteration_single_df.write_csv(
+        os.path.join(path_to_save, f"{cond}_{model_type}_{cell_type}_weights_iterations.tsv"),
+            separator = "\t"
+    )
+    if model_type == "bayes":
+        uncertainties_per_iteration_single_df = pl.concat(weight_uncertainties_per_iteration_set)
+        uncertainties_per_iteration_single_df.write_csv(
+            os.path.join(path_to_save, f"{cond}_{model_type}_{cell_type}_uncertainties_iterations.tsv"),
+            separator = "\t"
+        )
+    #
     stacked = np.stack(all_weights)
     mean_weight = stacked.mean(axis=0)
     std_weight = stacked.std(axis=0)
