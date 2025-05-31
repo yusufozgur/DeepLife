@@ -74,7 +74,7 @@ def run_vega_model(model_type, train_data, valid_data, mask_df, path_to_save = "
             for _ in range(N):
                 from model.decoder_bayes import DecoderBayes
 
-                mask_np = mask.drop("target").to_numpy()
+                mask_np = mask_df.drop("target").to_numpy()
 
                 latent_dims= mask_np.shape[1]
                 input_dims = mask_np.shape[0]
